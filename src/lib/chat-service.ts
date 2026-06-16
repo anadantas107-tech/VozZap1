@@ -268,6 +268,9 @@ export async function getUserConversations() {
     return []
   }
 
+  return conversations as Conversation[]
+}
+
 // ============================================
 // MENSAGENS
 // ============================================

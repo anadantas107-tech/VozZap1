@@ -232,12 +232,14 @@ async function exemploEnviarMensagem() {
       }
     )
 
-    // Quando terminar:
+    // 7. Desinscrever quando terminar
     // unsubscribe()
-  } catch (error) {
-    console.error('Erro:', error)
+  } catch (err) {
+    console.error('Erro:', err)
   }
 }
+
+exemploEnviarMensagem()
 
 // ============================================
 // CUSTOMIZAÇÕES OPCIONAIS
