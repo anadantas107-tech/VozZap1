@@ -26,16 +26,7 @@ export function ConversationList({
       setError('')
       try {
         const loaded = await getUserConversations()
-        const formatted = loaded.map((conv) => {
-          const otherUserId = conv.user_1_id === currentUserId ? conv.user_2_id : conv.user_1_id
-          const profiles = conv.user_1_id === currentUserId ? conv.profiles_2 : conv.profiles
-          
-          return {
-            ...conv,
-            other_user: profiles as Profile,
-          }
-        })
-        setConversations(formatted)
+        setConversations(loaded)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Erro ao carregar conversas')
       } finally {
@@ -118,7 +109,7 @@ export function ConversationList({
                   </span>
                 </div>
                 <p className="conversation-preview">
-                  {conv.last_message || '@' + conv.other_user?.username}
+                  @{conv.other_user?.username}
                 </p>
               </div>
             </button>

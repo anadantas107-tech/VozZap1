@@ -21,7 +21,7 @@ export function AudioRecorder({ conversationId, receiverId, onSend, disabled }: 
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
-  const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
 
   // Iniciar gravação
@@ -119,6 +119,7 @@ export function AudioRecorder({ conversationId, receiverId, onSend, disabled }: 
         audio_url: URL.createObjectURL(audioBlob), // URL local do áudio
         audio_duration: duration,
         created_at: new Date().toISOString(),
+        is_read: false,
         read_at: null,
       }
       
@@ -160,6 +161,7 @@ export function AudioRecorder({ conversationId, receiverId, onSend, disabled }: 
         audio_url: audioUrl,
         audio_duration: 0, // Não temos duração de URL externa
         created_at: new Date().toISOString(),
+        is_read: false,
         read_at: null,
       }
       

@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim() || ''
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim() || ''
@@ -13,7 +13,7 @@ if (typeof window !== 'undefined') {
   })
 }
 
-let supabase = null
+let supabase: SupabaseClient | null = null
 let isSupabaseConfigured = false
 
 try {

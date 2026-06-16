@@ -31,6 +31,7 @@ import { chats, currentUser, myPosts, posts as initialPosts, users, type Post, t
 import { isSupabaseConfigured, supabase } from './lib/supabase'
 import { DirectMessagesScreen } from './components/Chat/DirectMessagesScreen'
 import { registerInSupabase, loginInSupabase } from './lib/chat-service'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 type Screen = 'feed' | 'search' | 'mine' | 'direct' | 'profile' | 'settings'
 type AuthMode = 'login' | 'register' | 'recover'
@@ -758,7 +759,7 @@ export default function App() {
       case 'feed': return <Feed posts={feedPosts} onLike={likePost} />
       case 'search': return <SearchScreen currentUserId={displayUser.id} />
       case 'mine': return <Mine posts={ownedPosts} onLike={likePost} onEdit={(post) => { setEditing(post); setModalOpen(true) }} onDelete={(id) => setOwnedPosts((list) => list.filter((post) => post.id !== id))} />
-      case 'direct': return <DirectMessagesScreen allUsers={users} currentUserId={displayUser.id} />
+      case 'direct': return <DirectMessagesScreen allUsers={users.map(u => ({ id: u.id, username: u.username, display_name: u.name, avatar_url: u.photoUrl }))} currentUserId={displayUser.id} />
       case 'profile': return <Profile user={displayUser} />
       case 'settings': return <SettingsScreen theme={theme} setTheme={setTheme} />
       default: return <Feed posts={allPosts} onLike={likePost} />

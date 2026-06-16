@@ -1,4 +1,8 @@
-import { supabase } from './supabase'
+import { supabase as supabaseClient } from './supabase'
+import type { SupabaseClient } from '@supabase/supabase-js'
+
+// Type assertion para evitar null checks em todo o código
+const supabase = supabaseClient as SupabaseClient
 
 // ============================================
 // UTILITÁRIOS
@@ -69,10 +73,14 @@ export interface Message {
  * Não aceita fallback de localStorage
  */
 export async function validateSupabaseAuth() {
-  const { data: { user }, error } = await supabase.auth.getUser()
+  if (!supabase) {
+    throw new Error('Supabase não configurado')
+  }
+  
+  const { data: { user }, error } = await supabase!.auth.getUser()
   
   if (error || !user) {
-    throw new Error('Usuário não autenticado no Supabase. Faça login para acessar o chat.')
+    throw new Error('Usuário não autenticado no supabase!. Faça login para acessar o chat.')
   }
   
   return user
@@ -83,7 +91,11 @@ export async function validateSupabaseAuth() {
  * Lança erro se não estiver logado
  */
 export async function validateAuth() {
-  const { data: { user }, error } = await supabase.auth.getUser()
+  if (!supabase) {
+    throw new Error('Supabase não configurado')
+  }
+  
+  const { data: { user }, error } = await supabase!.auth.getUser()
   
   if (error || !user) {
     throw new Error('Usuário não autenticado. Faça login para acessar o chat.')
@@ -102,7 +114,7 @@ export async function registerInSupabase(email: string, password: string, userDa
 
   try {
     // 1. Registrar no Supabase Auth
-    const { data, error: authError } = await supabase.auth.signUp({
+    const { data, error: authError } = await supabase!.auth.signUp({
       email,
       password,
       options: {
@@ -120,24 +132,28 @@ export async function registerInSupabase(email: string, password: string, userDa
 
     // 2. Login automático
     if (data.user.id) {
-      await supabase.auth.signInWithPassword({ email, password })
-        .catch(err => console.warn('Login automático falhou:', err))
+      try {
+        await supabase!.auth.signInWithPassword({ email, password })
+      } catch (err: any) {
+        console.warn('Login automático falhou:', err)
+      }
       
       // 3. Criar profile
-      await supabase
-        .from('profiles')
-        .insert({
-          id: data.user.id,
-          username: userData.username,
-          display_name: userData.name,
-          is_online: true,
-          last_seen_at: new Date().toISOString(),
-        })
-        .catch(err => {
-          if (!err.message?.includes('duplicate')) {
-            console.warn('Erro ao criar profile:', err)
-          }
-        })
+      try {
+        await supabase!
+          .from('profiles')
+          .insert({
+            id: data.user.id,
+            username: userData.username,
+            display_name: userData.name,
+            is_online: true,
+            last_seen_at: new Date().toISOString(),
+          })
+      } catch (err: any) {
+        if (!err.message?.includes('duplicate')) {
+          console.warn('Erro ao criar profile:', err)
+        }
+      }
     }
 
     return data.user
@@ -156,7 +172,7 @@ export async function loginInSupabase(email: string, password: string) {
     throw new Error('Supabase não configurado')
   }
 
-  const { data, error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await supabase!.auth.signInWithPassword({
     email,
     password
   })
@@ -177,7 +193,10 @@ export async function loginInSupabase(email: string, password: string) {
       last_seen_at: new Date().toISOString(),
     })
     .eq('id', data.user.id)
-    .catch(err => console.warn('Erro ao atualizar status:', err))
+    .then(
+      () => {},
+      (err: any) => console.warn('Erro ao atualizar status:', err)
+    )
 
   return data.user
 }
@@ -253,22 +272,31 @@ export async function getOrCreateConversation(userId1: string, userId2: string) 
 export async function getUserConversations() {
   const user = await validateAuth()
 
-  // Buscar conversas do usuário
+  // Buscar conversas do usuário com join nas profiles
   const { data: conversations, error: convError } = await supabase
     .from('conversations')
-    .select('*')
+    .select(`
+      *,
+      profiles_1:user_1_id(id, username, display_name, avatar_url, bio, is_online, last_seen_at),
+      profiles_2:user_2_id(id, username, display_name, avatar_url, bio, is_online, last_seen_at)
+    `)
     .or(`user_1_id.eq.${user.id},user_2_id.eq.${user.id}`)
     .order('updated_at', { ascending: false })
 
   if (convError) {
-    throw new Error(`Erro ao carregar conversas: ${convError.message}`)
+    console.warn('Erro ao carregar conversas do Supabase:', convError)
+    return []
   }
 
   if (!conversations || conversations.length === 0) {
     return []
   }
 
-  return conversations as Conversation[]
+  // Mapear para adicionar other_user
+  return conversations.map((conv: any) => ({
+    ...conv,
+    other_user: conv.user_1_id === user.id ? conv.profiles_2 : conv.profiles_1,
+  })) as Conversation[]
 }
 
 // ============================================
@@ -397,14 +425,14 @@ export function subscribeToMessages(
         table: 'messages',
         filter: `conversation_id=eq.${conversationId}`,
       },
-      (payload) => {
+      (payload: any) => {
         onNewMessage(payload.new as Message)
       }
     )
     .subscribe()
 
   return () => {
-    supabase.removeChannel(channel)
+    supabase!.removeChannel(channel)
   }
 }
 
@@ -425,14 +453,14 @@ export function subscribeToProfileUpdates(
         table: 'profiles',
         filter: `id=eq.${userId}`,
       },
-      (payload) => {
+      (payload: any) => {
         onProfileUpdate(payload.new as Profile)
       }
     )
     .subscribe()
 
   return () => {
-    supabase.removeChannel(channel)
+    supabase!.removeChannel(channel)
   }
 }
 
@@ -464,7 +492,7 @@ export async function getCurrentUserProfile() {
       
       if (usersData && currentEmail) {
         const users = new Map(JSON.parse(usersData))
-        const userData = users.get(currentEmail)
+        const userData = users.get(currentEmail) as any
         
         if (userData?.user) {
           const profile: Profile = {
